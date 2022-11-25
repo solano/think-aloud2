@@ -2,7 +2,7 @@
 """
 Created on Fri Feb 11 15:09:37 2022
 
-Calculates various indexes from the points in embedding space.
+Calculates various indices from the points in embedding space.
 
 @author: Solano Felicio
 """
