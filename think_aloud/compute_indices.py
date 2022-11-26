@@ -17,40 +17,9 @@ import numpy.linalg as la
 from scipy.stats.mstats import gmean
 import python_tsp.heuristics
 
-# %% Read data
-
-# --- Experience data in original segmentation level ---
-df_rows = pd.read_csv("text_rows.csv", sep="\t")
-
-# Group row-level data into probes
-probes = df_rows.groupby(['suj','bloc','prob'], group_keys=False)
-
-# --- Experience data segmented at probe level ---
-
-df_probes = pd.read_csv("text_probes.csv", sep="\t")
-
-# Group probe-level data into blocks
-blocks = df_probes.groupby(['suj','bloc'], group_keys=False)
-
-# --- Experience data segmented at subrow level ---
-df_subrows = pd.read_csv("text_subrows.csv", sep="\t")
-
-# Group subrow-level data into probes
-probes_sub = df_subrows.groupby(['suj','bloc','prob'], group_keys=False)
-
-# --- Subject data ---
-subj_data = pd.read_csv("info_participants.csv", sep="\t")
-
-# Correct some entries which are lowercase, replace 'H' -> 'M', simplify names
-subj_data.genre = subj_data.genre.str.upper()
-subj_data.genre = subj_data.genre.apply(lambda s: 'M' if s=='H' else s)
-subj_data = subj_data.rename(columns={"total-MEWS":"MEWS"})
-
-# %% Load embeddings
-
-row_embeddings = np.load("row_embeddings.npy")
-probe_embeddings = np.load("probe_embeddings.npy")
-subrow_embeddings = np.load("subrow_embeddings.npy")
+row_embeddings = np.load("../data/row_embeddings.npy")
+probe_embeddings = np.load("../data/probe_embeddings.npy")
+subrow_embeddings = np.load("../data/subrow_embeddings.npy")
 
 
 # %% Define useful functions
@@ -166,29 +135,15 @@ def singular_mvee(points, tol=1e-3, eps=1e-3):
 
 # Volume as defined by Toubia: geometric mean of semiaxis lengths.
 # Singular values of A = semiaxis lengths
-def volume(A):
+def matvol(A):
     D = la.svd(A, compute_uv=False)
     return gmean(D)
 
-def volp(points):
+def volume(points):
     A, c = singular_mvee(points)
-    return volume(A)
+    return matvol(A)
 
-# Get inattention and impulsivity scores separately
-ADHD_inatt = lambda df: df[[f"ADHD-{n}" for n in (1,2,3,4,7,8,9,10,11)]].astype('int').sum(1)
-ADHD_impuls = lambda df: df[[f"ADHD-{n}" for n in (5,6,12,13,14,15,16,17,18)]].astype('int').sum(1)
 
-# Prepare some dataframe for exportation
-def prepare_export(indexdf, columns):
-    df = indexdf.merge(subj_data, how='left', left_on='suj', right_on='sujet')
-    
-    df.insert(0, 'ADHD_inatt', ADHD_inatt(df))
-    df.insert(0, 'ADHD_impuls', ADHD_impuls(df))
-    df = df[columns]
-    
-    return df
-
-# %% Analysis of volume
 
 # df is either df_probes or df_rows or df_subrows.
 # Calculates volume of all points for each subject
@@ -197,47 +152,12 @@ def voldf(df, points):
     nbpoints = []
     volumes = []
     for subj in subjects:
-        v = volp(points[df.suj==subj])
+        v = volume(points[df.suj==subj])
         nbpoints.append((df.suj==subj).sum())
         volumes.append(v)
     data = np.array([subjects, nbpoints, volumes]).T
     return pd.DataFrame(data=data,
                         columns = ['suj','nbpoints','vol'])
-
-row_vol = voldf(df_rows, row_embeddings)
-probe_vol = voldf(df_probes, probe_embeddings)
-subrow_vol = voldf(df_subrows, subrow_embeddings)
-
-# %% Prepare and export volume data
-
-row_voldf = prepare_export(row_vol, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'nbpoints','vol'])
-subrow_voldf = prepare_export(subrow_vol, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'nbpoints','vol'])
-probe_voldf = prepare_export(probe_vol, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'nbpoints','vol'])
-
-row_voldf.to_csv("volume_rows.csv", sep="\t", index=False)
-subrow_voldf.to_csv("volume_subrows.csv", sep="\t", index=False)
-probe_voldf.to_csv("volume_probes.csv", sep="\t", index=False)
-
-# %% Scatterplots of volume as function of ADHD
-plt.scatter(row_voldf.ADHD, row_voldf.vol)
-plt.title("Row volumes as function of ADHD")
-plt.show()
-
-plt.scatter(subrow_voldf.ADHD, subrow_voldf.vol)
-plt.title("Subrow volumes as function of ADHD")
-plt.show()
-
-plt.scatter(probe_voldf.ADHD, probe_voldf.vol)
-plt.title("Probe volumes as function of ADHD")
-plt.show()
-
-# %% Analysis of circuitousness
 
 # df is either df_probes or df_rows or df_subrows.
 # Calculates circuitousness of each trajectory
@@ -266,28 +186,6 @@ def circdf(df, points, trajlevel):
     return pd.DataFrame(data=c,
                         columns=columns)
 
-row_circ = circdf(df_rows, row_embeddings, "prob")
-subrow_circ = circdf(df_subrows, subrow_embeddings, "prob")
-probe_circ = circdf(df_probes, probe_embeddings, "bloc")
-
-# %% Prepare and export circuitousness data
-
-row_circdf = prepare_export(row_circ, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'bloc','prob','nbpoints','circ'])
-subrow_circdf = prepare_export(subrow_circ, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'bloc','prob','nbpoints','circ'])
-probe_circdf = prepare_export(probe_circ, ['suj','age','genre','exp','level','topic',
-                       'ADHD','ADHD_inatt','ADHD_impuls','MEWS',
-                       'bloc','nbpoints','circ'])
-
-row_circdf.to_csv("circ_rows.csv", sep="\t", index=False)
-subrow_circdf.to_csv("circ_subrows.csv", sep="\t", index=False)
-probe_circdf.to_csv("circ_probes.csv", sep="\t", index=False)
-
-# %% Analysis of transitions at row level
-
 # Here each nonempty row of text is considered a different phrase
 # to be embedded. "Speed" is defined as the quotient of distance
 # between consecutive rows and the time elapsed between them.
@@ -297,13 +195,13 @@ probe_circdf.to_csv("circ_probes.csv", sep="\t", index=False)
 # For each probe, compute trajectory jump lengths, intervals and speeds
 def probe_to_trajectory(probe):
     # Only nonempty rows
-    indexes = (probe.SPEECH.isna() == False)
+    indices = (probe.SPEECH.isna() == False)
     
-    vecs = row_embeddings[probe.index][indexes]
+    vecs = row_embeddings[probe.index][indices]
     
     # Choose time for each row as average of start and end times
-    start_time = probe.start_time[indexes].reset_index(drop=True)
-    end_time = probe.end_time[indexes].reset_index(drop=True)
+    start_time = probe.start_time[indices].reset_index(drop=True)
+    end_time = probe.end_time[indices].reset_index(drop=True)
     time = (start_time + end_time)/2
     
     interv = pd.array([time[i+1]-time[i] for i in range(len(time)-1)])
@@ -317,41 +215,6 @@ def probe_to_trajectory(probe):
     
     return list(zip(jumps, interv, pause, speed))
 
-trajectories_rows = probes.apply(probe_to_trajectory)
-
-# Delete null trajectories
-trajectories_rows = trajectories_rows[trajectories_rows.isnull()==False]
-
-#nb_trajectories_rows = len(trajectories_rows)
-#print(f"There are {nb_trajectories_rows} non-null trajectories out of {nb_probes}")
-
-
-# Separate transitions as units
-
-transitions_rows = []
-
-for index,traj in trajectories_rows.iteritems():
-    for datatraj in traj:
-        transitions_rows.append((*index, *datatraj))
-        
-transitions_rows = pd.DataFrame(data = transitions_rows,
-                           columns=['suj','bloc','prob','length','interv',
-                                    'pause','speed'])
-
-#nb_transitions_rows = len(transitions_rows)
-#print(f"There are {nb_transitions_rows} transitions at row level")
-
-# %% Prepare and export row-level transitions for statistical analysis in R
-
-df = prepare_export(transitions_rows, ['suj','bloc','prob',
-                                       'length','interv','pause','speed',
-         'age','genre','exp','level','topic',
-         'ADHD','ADHD_inatt', 'ADHD_impuls','MEWS'])
-
-df.to_csv("row_as_embedding_transitions.csv", sep='\t', index=False)
-
-# %% Analysis of transitions at probe level
-
 # Here each probe gives a phrase. There is no temporal data,
 # so we compute only jump lengths between probes. Each block gives
 # a trajectory in embedding space.
@@ -359,8 +222,8 @@ df.to_csv("row_as_embedding_transitions.csv", sep='\t', index=False)
 # For each block, compute trajectory jump lengths
 def block_to_trajectory(block):
     # Only nonempty phrases
-    indexes = (block.SPEECH.isna() == False)
-    vecs = probe_embeddings[block.index][indexes]
+    indices = (block.SPEECH.isna() == False)
+    vecs = probe_embeddings[block.index][indices]
         
     jumps = trajectory_speed(vecs)
     
@@ -368,32 +231,6 @@ def block_to_trajectory(block):
         return None # null trajectory
     
     return jumps
-
-trajectories_prob = blocks.apply(block_to_trajectory)
-
-# Delete null trajectories
-trajectories_prob = trajectories_prob[trajectories_prob.isnull()==False]
-
-# Separate transitions as units
-
-transitions_prob = []
-
-for index,traj in trajectories_prob.iteritems():
-    for jumplength in traj:
-        transitions_prob.append((*index, jumplength))
-        
-transitions_prob = pd.DataFrame(data = transitions_prob,
-                           columns=['suj','bloc','length'])
-
-# %% Prepare and export probe-level transitions for statistical analysis in R
-
-df2 = prepare_export(transitions_prob, ['suj','bloc','length',
-         'age','genre','exp','level','topic',
-         'ADHD','ADHD_inatt', 'ADHD_impuls','MEWS'])
-
-df2.to_csv("probe_as_embedding_transitions.csv", sep='\t', index=False)
-
-# %% Analysis of transitions at subrow level
 
 # Here each row of original data gives multiple phrases. There is no
 # temporal data, so we compute only jump lengths. Each probe gives
@@ -402,8 +239,8 @@ df2.to_csv("probe_as_embedding_transitions.csv", sep='\t', index=False)
 # For each probe, compute trajectory jump lengths
 def probe_sub_to_trajectory(probe):
     # Only nonempty phrases
-    indexes = (probe.SPEECH.isna() == False)
-    vecs = subrow_embeddings[probe.index][indexes]
+    indices = (probe.SPEECH.isna() == False)
+    vecs = subrow_embeddings[probe.index][indices]
         
     jumps = trajectory_speed(vecs)
     
@@ -411,27 +248,3 @@ def probe_sub_to_trajectory(probe):
         return None # null trajectory
     
     return jumps
-
-trajectories_sub = probes_sub.apply(probe_sub_to_trajectory)
-
-# Delete null trajectories
-trajectories_sub = trajectories_sub[trajectories_sub.isnull()==False]
-
-# Separate transitions as units
-
-transitions_sub = []
-
-for index,traj in trajectories_sub.iteritems():
-    for jumplength in traj:
-        transitions_sub.append((*index, jumplength))
-        
-transitions_sub = pd.DataFrame(data = transitions_sub,
-                           columns=['suj','bloc','prob','length'])
-
-# %% Prepare and export subrow-level transitions for statistical analysis in R
-
-df2 = prepare_export(transitions_sub, ['suj','bloc','length',
-         'age','genre','exp','level','topic',
-         'ADHD','ADHD_inatt', 'ADHD_impuls','MEWS'])
-
-df3.to_csv("subrow_as_embedding_transitions.csv", sep='\t', index=False)
