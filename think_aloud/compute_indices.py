@@ -106,8 +106,6 @@ def singular_mvee(points, tol=1e-3, eps=1e-3):
     if(T > d):
         return mvee(points, tol)
     
-    #print(f"MVEE is singular, {T} points")
-    
     # Proceed according to Toubia
     
     # First, recenter around one of the points, arbitrarily chosen to be
@@ -125,7 +123,7 @@ def singular_mvee(points, tol=1e-3, eps=1e-3):
         if svalue > eps:
             K += 1
 
-    print(f"MVEE is singular, {T} points, {K} dimensions")
+    #print(f"MVEE is singular, {T} points, {K} dimensions")
     S1 = U[:, :K]
     subspace_points = np.dot(S1.T, Y).T
     
