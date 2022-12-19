@@ -3,3 +3,4 @@ think_aloud/think_aloud.egg-info/
 think_aloud/__pycache__/
 notebooks/stats/.ipynb_checkpoints/
 tests/__pycache__/
+.vscode/

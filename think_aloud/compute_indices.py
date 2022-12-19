@@ -70,8 +70,28 @@ def trajectory_speed(vecs, dt=1):
         
     return dx/dt
 
+# "instantaneous forward flow" as defined in doi=10.1037/amp0000391
+def fflow_instant(vecs):
+    N = len(vecs)
+    if N <= 1: return 1
+
+    ff = []
+    for n, vec in enumerate(vecs):
+        dists = np.asarray([dist(vec, vecs[i]) for i in range(n)])
+        if len(dists)==0:
+            ff.append(1)
+        else:
+            ff.append(np.average(dists))
+    
+    return pd.array(ff)
+
+# "forward flow"
+def fflow(vecs):
+    return np.average(fflow_instant(vecs))
+
+# Minimum volume enclosing ellipsoid
 # By user unutbu in https://stackoverflow.com/questions/14016898/port-matlab-bounding-ellipsoid-code-to-python
-def mvee(points, tol = 0.001):
+def mvee(points, tol = 1e-5):
     """
     Finds the ellipse equation in "center form"
     (x-c).T * A * (x-c) = 1
@@ -132,15 +152,12 @@ def singular_mvee(points, tol=1e-3, eps=1e-3):
     return mvee(subspace_points, tol)
 
 # Volume as defined by Toubia: geometric mean of semiaxis lengths.
-# Singular values of A = semiaxis lengths
-def matvol(A):
-    D = la.svd(A, compute_uv=False)
-    return gmean(D)
-
+# Singular values of A = (semiaxis lengths)^-2
 def volume(points):
     A, c = singular_mvee(points)
-    return matvol(A)
-
+    D = la.svd(A, compute_uv=False)
+    D = D**-0.5
+    return gmean(D)
 
 
 # df is either df_probes or df_rows or df_subrows.
