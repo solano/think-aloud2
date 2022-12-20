@@ -55,15 +55,15 @@ Attempt at interpretation of the difference between segmentation levels: LASER w
 File structure
 --------------
 
-Python code for preprocessing, embedding and analysing data is to be found in `think_aloud/'. Data is (predictably) in `data/' and some pytests are in `tests/', used to ensure that `compute_indices.py' works properly. Starting from the raw data file `data_stream_text_time.csv', one must execute, in this order:
+Python code for preprocessing, embedding and analysing data is to be found in `think_aloud/`. Data is (predictably) in `data/` and some pytests are in `tests/`, used to ensure that `compute_indices.py` works properly. Starting from the raw data file `data_stream_text_time.csv`, one must execute, in this order:
 
-- `preprocess.py' to clean up oral markers from transcribed speech and run a spellchecker (this generates the data files `text_*.csv'. The original structure of the dataset in kept in `data_stream_text_time_clean.csv')
+- `preprocess.py` to clean up oral markers from transcribed speech and run a spellchecker (this generates the data files `text_*.csv`. The original structure of the dataset in kept in `data_stream_text_time_clean.csv`)
 
-- `embed.py' to embed the generated text using LASER (this generates the data files `*_embeddings.npy');
+- `embed.py` to embed the generated text using LASER (this generates the data files `*_embeddings.npy`);
 
-- notebooks/compute_indices.ipynb to compute quantities on embedded data and export data files for statistical analysis (this generates all other data files);
+- `notebooks/compute_indices.ipynb` to compute quantities on embedded data and export data files for statistical analysis (this generates all other data files);
 
-- All other files in notebooks/, which are R notebooks used to do statistical tests with the package `lmerTest'.
+- All other files in notebooks/, which are R notebooks used to do statistical tests with the package `lmerTest`.
 
 
 Warnings
